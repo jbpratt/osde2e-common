@@ -99,14 +99,17 @@ func (c *Client) GetJobLogs(ctx context.Context, name, namespace string) (string
 // If the watched job fails, is disconnected, the watch produces an error, the
 // watch channel closes, or the context is cancelled at timeout, it will return
 // an error containing event in question.
-func (c *Client) WatchJob(ctx context.Context, namespace string, job batchv1.Job) error {
+func (c *Client) WatchJob(ctx context.Context, namespace string, name string) error {
+	job := new(batchv1.Job)
+	if err := c.Get(ctx, name, namespace, job); err != nil {
+		return fmt.Errorf("failed to find job %s/%s: %w", namespace, name, err)
+	}
 	clientSet, err := kubernetes.NewForConfig(c.GetConfig())
 	if err != nil {
 		return fmt.Errorf("failed to create kubernetes clientset: %w", err)
 	}
 	watcher, err := clientSet.BatchV1().Jobs(namespace).Watch(ctx, metav1.ListOptions{
-		ResourceVersion: job.ResourceVersion,
-		FieldSelector:   "metadata.name=" + job.Name,
+		FieldSelector: "metadata.name=" + job.Name,
 	})
 	if err != nil {
 		return fmt.Errorf("failed creating job watcher: %w", err)
